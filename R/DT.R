@@ -15,7 +15,7 @@ tableviz_dt <- function(data, opts = NULL, ...){
   default_opts <- list(
     pagination = TRUE,
     pagination_length = 5,
-    rownumbers = TRUE,
+    rownumbers = FALSE,
     search = TRUE,
     info = TRUE,
     buttons = c(), #c('copy', 'csv', 'excel', 'pdf', 'print'),
@@ -24,8 +24,9 @@ tableviz_dt <- function(data, opts = NULL, ...){
     subtitle = "",
     caption = "",
     fixed_header = FALSE,
-    col_filters = FALSE,
-    theme = "light"
+    col_filters = "none",
+    theme = "light",
+    scrollX = TRUE
   )
   opts <- modifyList(default_opts, opts)
   str(opts)
@@ -35,10 +36,10 @@ tableviz_dt <- function(data, opts = NULL, ...){
   rownames <- FALSE
   buttons <- NULL
   lang <- NULL
-  col_filters <- "none"
-  if(opts$col_filters){
-    col_filters <- list(position = col_filters, clear = TRUE, plain = FALSE)
-  }
+  #col_filters <- "none"
+  # if(opts$col_filters %in% c("top", "bottom")){
+  #   col_filters <- list(position = col_filters, clear = TRUE, plain = FALSE)
+  # }
   if(opts$search){
     dom_str <- paste0("f", dom_str)
   }
@@ -48,22 +49,29 @@ tableviz_dt <- function(data, opts = NULL, ...){
   if(opts$pagination){
     dom_str <- paste0(dom_str,"p")
   }
-  if(!is.null(opts$lang)){
+  if(!is.null(opts$lang) && opts$lang != "en"){
     langs <- list(es = "Spanish", de = "German", cn = "Chinese", pt = "Portuguese")
-    lang  <- list(url = paste0('//cdn.datatables.net/plug-ins/1.10.11/i18n/'), langs[[opts$lang]], ('.json'))
+    lang <- langs[[opts$lang]]
+    lang  <- list(url = glue('//cdn.datatables.net/plug-ins/1.10.11/i18n/{lang}.json'))
   }
-  if(length(opts$buttons)> 0){
-    dom_str <- paste0(dom_str,"B")
-    exts <- c(exts, "Buttons")
-    buttons <- opts$buttons
+  if(!is.null(opts$buttons)){
+    if(opts$buttons == ""){
+      buttons <- NULL
+    }else if(length(opts$buttons)> 0){
+      dom_str <- paste0(dom_str,"B")
+      exts <- c(exts, "Buttons")
+      buttons <- opts$buttons
+    }
   }
   if(opts$rownumbers){
-    rownames = 1:nrow(d)
+    rownames <- as.character(1:nrow(d))
   }
   if(opts$fixed_header){
     exts <- c(exts, "FixedHeader")
   }
-
+  if(!opts$theme %in% c("light", "dark")){
+    opts$theme <- "light"
+  }
 
   theme_opts <- list(
     light = list(
@@ -80,23 +88,22 @@ tableviz_dt <- function(data, opts = NULL, ...){
                                            'color': '<<header_color>>'});
       }"
   customJS <- glue_data(theme_opts[[opts$theme]], customJS_tpl, .open = "<<", .close = ">>")
-  message(customJS)
-  str(theme_opts[[opts$theme]])
 
   dt_opts <- list(
     dom = dom_str,
     pageLength = opts$pagination_length,
     order = list(),
     language = lang,
-    buttons = buttons,
+    buttons = c(buttons, NULL),
     fixedHeader = opts$fixed_header,
-    initComplete = JS(customJS)
+    initComplete = JS(customJS),
+    scrollX = TRUE
   )
 
 
   datatable(f$data, options = dt_opts,
             extensions = exts,
-            filter = col_filters,
+            filter = opts$col_filters,
             escape = FALSE,
             rownames = rownames,
             caption = caption)
